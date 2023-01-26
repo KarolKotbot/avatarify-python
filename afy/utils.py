@@ -6,8 +6,44 @@ import numpy as np
 import cv2
 
 
-def log(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+def log(*args, file=sys.stderr, **kwargs):
+    time_str = f'{time.time():.6f}'
+    print(f'[{time_str}]', *args, file=file, **kwargs)
+
+
+def info(*args, file=sys.stdout, **kwargs):
+    print(*args, file=file, **kwargs)
+
+
+class Tee(object):
+    def __init__(self, filename, mode='w', terminal=sys.stderr):
+        self.file = open(filename, mode, buffering=1)
+        self.terminal = terminal
+
+    def __del__(self):
+        self.file.close()
+
+    def write(self, *args, **kwargs):
+        log(*args, file=self.file, **kwargs)
+        log(*args, file=self.terminal, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        return self.write(*args, **kwargs)
+
+    def flush(self):
+        self.file.flush()
+
+
+class Logger():
+    def __init__(self, filename, verbose=True):
+        self.tee = Tee(filename)
+        self.verbose = verbose
+
+    def __call__(self, *args, important=False, **kwargs):
+        if not self.verbose and not important:
+            return
+
+        self.tee(*args, **kwargs)
 
 
 class Once():
@@ -46,13 +82,6 @@ class TicToc:
         log(f"{str} took {t:.4f}ms")
         return t
 
-    @staticmethod
-    def print(name=''):
-        log(f'\n=== {name} Timimg ===')
-        for fn, times in self.timing.items():
-            min, max, mean, p95 = np.min(times), np.max(times), np.mean(times), np.percentile(times, 95)
-            log(f'{fn}:\tmin: {min:.4f}\tmax: {max:.4f}\tmean: {mean:.4f}ms\tp95: {p95:.4f}ms')
-
 
 class AccumDict:
     def __init__(self, num_f=3):
@@ -85,6 +114,10 @@ class AccumDict:
         return self.__str__()
 
 
+def clamp(value, min_value, max_value):
+    return max(min(value, max_value), min_value)
+
+
 def crop(img, p=0.7, offset_x=0, offset_y=0):
     h, w = img.shape[:2]
     x = int(min(w, h) * p)
@@ -92,12 +125,16 @@ def crop(img, p=0.7, offset_x=0, offset_y=0):
     r = w - l
     u = (h - x) // 2
     d = h - u
+
+    offset_x = clamp(offset_x, -l, w - r)
+    offset_y = clamp(offset_y, -u, h - d)
+
     l += offset_x
     r += offset_x
     u += offset_y
     d += offset_y
 
-    return img[u:d, l:r], (l,r,u,d,w,h)
+    return img[u:d, l:r], (offset_x, offset_y)
 
 
 def pad_img(img, target_size, default_pad=0):

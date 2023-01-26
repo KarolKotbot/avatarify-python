@@ -10,7 +10,6 @@ parser.add_argument("--no-pad", dest="no_pad", action="store_true", help="don't 
 parser.add_argument("--enc_downscale", default=1, type=float, help="Downscale factor for encoder input. Improves performance with cost of quality.")
 parser.add_argument("--fp16", action="store_true", help="Use FP16 precision (can boost on GPUs with tensor core, e.g. 2080Ti)")
 
-parser.add_argument("--cam", type=int, default=0, help="Webcam device ID")
 parser.add_argument("--virt-cam", type=int, default=0, help="Virtualcam device ID")
 parser.add_argument("--no-stream", action="store_true", help="On Linux, force no streaming")
 
@@ -20,8 +19,11 @@ parser.add_argument("--hide-rect", action="store_true", default=False, help="Hid
 parser.add_argument("--avatars", default="./avatars", help="path to avatars directory")
 
 parser.add_argument("--is-worker", action="store_true", help="Whether to run this process as a remote GPU worker")
-parser.add_argument("--worker-port", type=int, default=5556, help="Which port to run the worker on")
-parser.add_argument("--worker-host", type=str, default=None, help="Hostname of the worker to connect to")
+parser.add_argument("--is-client", action="store_true", help="Whether to run this process as a client")
+parser.add_argument("--in-port", type=int, default=5557, help="Remote worker input port")
+parser.add_argument("--out-port", type=int, default=5558, help="Remote worker output port")
+parser.add_argument("--in-addr", type=str, default=None, help="Socket address for incoming messages, like example.com:5557")
+parser.add_argument("--out-addr", type=str, default=None, help="Socker address for outcoming messages, like example.com:5558")
 parser.add_argument("--jpg_quality", type=int, default=95, help="Jpeg copression quality for image transmission")
 
 parser.set_defaults(relative=False)
@@ -29,3 +31,6 @@ parser.set_defaults(adapt_scale=False)
 parser.set_defaults(no_pad=False)
 
 opt = parser.parse_args()
+
+if opt.is_client and (opt.in_addr is None or opt.out_addr is None):
+    raise ValueError("You have to set --in-addr and --out-addr")
